@@ -8,7 +8,7 @@ import streamlit as st
 # Fetch stock data
 def fetch_stock_data(ticker):
     stock = yf.Ticker(ticker)
-    data = stock.history(period="1y")
+    data = stock.history(period="ytd")  # Get year-to-date data for 2024
     return data
 
 
