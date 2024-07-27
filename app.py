@@ -12,6 +12,13 @@ def fetch_stock_data(ticker):
     return data
 
 
+# Fetch market cap
+def fetch_market_cap(ticker):
+    stock = yf.Ticker(ticker)
+    info = stock.info
+    return info.get('marketCap', 0)
+
+
 # Fetch news
 def fetch_news(ticker):
     url = f"https://finance.yahoo.com/quote/{ticker}?p={ticker}&.tsrc=fin-srch"
@@ -23,14 +30,11 @@ def fetch_news(ticker):
 
 
 # Filter stocks
-def filter_stocks(stock_data, min_market_cap, max_market_cap, min_volume, max_volatility):
+def filter_stocks(stock_data, market_cap, min_market_cap, max_market_cap, min_volume, max_volatility):
     filtered_data = stock_data.copy()
+    filtered_data['Market Cap'] = market_cap
 
-    # Dummy market cap data as placeholder
-    market_cap = {'AAPL': 2.5e12, 'MSFT': 2.3e12, 'GOOGL': 1.5e12}
-    filtered_data['Market Cap'] = market_cap.get(ticker, 0)
-
-    if filtered_data['Market Cap'][0] < min_market_cap or filtered_data['Market Cap'][0] > max_market_cap:
+    if market_cap < min_market_cap or market_cap > max_market_cap:
         return pd.DataFrame()  # Return empty DataFrame if market cap doesn't match criteria
 
     # Momentum (simple example: recent price trend)
@@ -50,22 +54,33 @@ def filter_stocks(stock_data, min_market_cap, max_market_cap, min_volume, max_vo
 st.title('Tech Companies Stock Screener')
 
 ticker = st.text_input('Enter Stock Ticker', value='AAPL')
-min_market_cap = st.number_input('Minimum Market Cap (in trillions)', value=1.0)
-max_market_cap = st.number_input('Maximum Market Cap (in trillions)', value=3.0)
-min_volume = st.number_input('Minimum Daily Volume (in millions)', value=10)
+min_market_cap = st.number_input('Minimum Market Cap (in billions)', value=100.0)
+max_market_cap = st.number_input('Maximum Market Cap (in billions)', value=1000.0)
+min_volume = st.number_input('Minimum Daily Volume (in millions)', value=1)
 max_volatility = st.number_input('Maximum Volatility (standard deviation of returns)', value=0.02)
 
 if st.button('Screen'):
-    stock_data = fetch_stock_data(ticker)
-    news = fetch_news(ticker)
-    filtered_data = filter_stocks(stock_data, min_market_cap * 1e12, max_market_cap * 1e12, min_volume * 1e6,
-                                  max_volatility)
+    try:
+        stock_data = fetch_stock_data(ticker)
+        st.write("Fetched Stock Data:")
+        st.write(stock_data.head())  # Display the fetched stock data
 
-    if filtered_data.empty:
-        st.write("No stocks matched your criteria.")
-    else:
-        st.write("Filtered Stock Data")
-        st.write(filtered_data)
+        market_cap = fetch_market_cap(ticker)
+        st.write(f"Market Cap: {market_cap}")
+
+        filtered_data = filter_stocks(stock_data, market_cap, min_market_cap * 1e9, max_market_cap * 1e9,
+                                      min_volume * 1e6, max_volatility)
+
+        if filtered_data.empty:
+            st.write("No stocks matched your criteria.")
+        else:
+            st.write("Filtered Stock Data")
+            st.write(filtered_data)
+
         st.write("Recent News")
+        news = fetch_news(ticker)
         for article in news:
             st.write(article)
+    except Exception as e:
+        st.write("An error occurred while fetching data. Please ensure the ticker symbol is correct.")
+        st.write(str(e))
